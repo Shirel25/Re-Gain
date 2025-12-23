@@ -1,0 +1,181 @@
+Shape: (300, 6)
+First row: [0 1 1 0 0 0]
+
+Repos (muscle relâché)
+Prépare-toi...
+3
+2
+1
+ENREGISTREMENT
+Activation (smooth): 0.67
+Activation (smooth): 1.25
+Activation (smooth): 1.58
+Activation (smooth): 1.84
+Activation (smooth): 2.09
+Activation (smooth): 2.35
+Activation (smooth): 2.43
+Activation (smooth): 2.59
+Activation (smooth): 2.67
+Activation (smooth): 2.78
+Activation (smooth): 2.89
+Activation (smooth): 2.99
+Activation (smooth): 3.01
+Activation (smooth): 3.07
+Activation (smooth): 3.13
+Activation (smooth): 3.15
+Activation (smooth): 3.20
+Activation (smooth): 3.09
+Activation (smooth): 3.15
+Activation (smooth): 3.09
+Activation (smooth): 3.14
+Activation (smooth): 3.14
+Activation (smooth): 3.14
+Activation (smooth): 3.19
+Activation (smooth): 3.16
+Activation (smooth): 3.24
+Activation (smooth): 3.23
+Activation (smooth): 3.24
+Activation (smooth): 3.32
+Activation (smooth): 3.44
+Activation (smooth): 3.59
+Activation (smooth): 3.57
+Activation (smooth): 3.67
+Activation (smooth): 3.74
+Activation (smooth): 3.81
+Activation (smooth): 3.89
+Activation (smooth): 3.89
+Activation (smooth): 3.98
+Activation (smooth): 3.98
+Activation (smooth): 3.97
+Activation (smooth): 3.98
+Activation (smooth): 4.01
+Activation (smooth): 3.98
+Activation (smooth): 3.99
+
+Baseline (repos): 3.12
+
+Contraction modérée
+Prépare-toi...
+3
+2
+1
+ENREGISTREMENT
+Activation (smooth): 0.76
+Activation (smooth): 1.32
+Activation (smooth): 1.72
+Activation (smooth): 1.96
+Activation (smooth): 2.16
+Activation (smooth): 2.35
+Activation (smooth): 2.54
+Activation (smooth): 2.56
+Activation (smooth): 2.57
+Activation (smooth): 2.62
+Activation (smooth): 2.72
+Activation (smooth): 2.74
+Activation (smooth): 2.82
+Activation (smooth): 2.86
+Activation (smooth): 2.94
+Activation (smooth): 2.96
+Activation (smooth): 3.05
+Activation (smooth): 3.15
+Activation (smooth): 3.15
+Activation (smooth): 3.21
+Activation (smooth): 3.34
+Activation (smooth): 3.37
+Activation (smooth): 3.45
+Activation (smooth): 3.46
+Activation (smooth): 3.51
+Activation (smooth): 3.60
+Activation (smooth): 3.60
+Activation (smooth): 3.58
+Activation (smooth): 3.66
+Activation (smooth): 3.65
+Activation (smooth): 3.59
+Activation (smooth): 3.56
+Activation (smooth): 3.50
+Activation (smooth): 3.45
+Activation (smooth): 3.36
+Activation (smooth): 3.27
+Activation (smooth): 3.24
+Activation (smooth): 3.20
+Activation (smooth): 3.16
+Activation (smooth): 3.20
+Activation (smooth): 3.24
+Activation (smooth): 3.27
+Activation (smooth): 3.28
+Activation (smooth): 3.28
+Activation (smooth): 3.32
+Activation (smooth): 3.27
+Activation (smooth): 3.31
+Activation (smooth): 3.27
+Activation (smooth): 3.25
+Activation (smooth): 3.20
+Activation (smooth): 3.18
+
+Contraction forte
+Prépare-toi...
+3
+2
+1
+ENREGISTREMENT
+Activation (smooth): 0.63
+Activation (smooth): 1.13
+Activation (smooth): 1.56
+Activation (smooth): 1.92
+Activation (smooth): 2.22
+Activation (smooth): 2.42
+Activation (smooth): 2.57
+Activation (smooth): 2.72
+Activation (smooth): 2.82
+Activation (smooth): 2.98
+Activation (smooth): 3.12
+Activation (smooth): 3.25
+Activation (smooth): 3.33
+Activation (smooth): 3.40
+Activation (smooth): 3.51
+Activation (smooth): 3.55
+Activation (smooth): 3.67
+Activation (smooth): 3.74
+Activation (smooth): 3.79
+Activation (smooth): 3.90
+Activation (smooth): 4.00
+Activation (smooth): 4.00
+Activation (smooth): 3.99
+Activation (smooth): 3.94
+Activation (smooth): 3.97
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 4.00
+Activation (smooth): 3.99
+Activation (smooth): 3.94
+Activation (smooth): 3.97
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 3.99
+Activation (smooth): 3.94
+Activation (smooth): 3.97
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 3.94
+Activation (smooth): 3.97
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 3.97
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 3.96
+Activation (smooth): 3.87
+Activation (smooth): 3.75
+Activation (smooth): 3.87
+Activation (smooth): 3.75
+Activation (smooth): 3.75
+Activation (smooth): 3.73
+Activation (smooth): 3.73
+Activation (smooth): 3.67
+
+Calibration terminée (après tare)
+Modérée (mean) : 0.16
+Forte   (max)  : 0.88
+
+Normalisation possible :
+Activation_norm = (activation - baseline) / max_activation
