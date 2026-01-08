@@ -1,8 +1,9 @@
 import pygame
-from random import randint, choice
+from random import choice, random
 from Classes.Player import Player
 from Classes.Obstacle import Obstacle
 from Classes.Interface import Interface
+from Classes.UserModel import UserModel
 from Classes.Config import WIDTH, HEIGHT, Y_GROUND, PLAYER_SPEED, OBSTACLE_SPEED
 
 """
@@ -27,7 +28,7 @@ Pour le User Model:
 def player_obstacle_handling(player, obstacles):
     """
     - Checks to see if there has been a collision (game over)
-    - Handles the camera movement
+    - Adjust obstacle speed relative to player
     """
     for obstacle in obstacles.sprites():
         # For debugging the jump
@@ -39,22 +40,46 @@ def player_obstacle_handling(player, obstacles):
             if overlap.width * overlap.height > 20: 
                 return False
 
-        # Camera fixed on the player
-        if player.sprite.moving: obstacle.animation_speed = PLAYER_SPEED + OBSTACLE_SPEED
-        else:                    obstacle.animation_speed = OBSTACLE_SPEED
-    
+        # # Camera fixed on the player
+        # if player.sprite.moving: obstacle.animation_speed = PLAYER_SPEED + OBSTACLE_SPEED
+        # else:                    obstacle.animation_speed = OBSTACLE_SPEED
+        
+        obstacle.animation_speed = OBSTACLE_SPEED
+
     return True
 
 
 def main():
+    user_model = UserModel()
+
     pygame.init()
     pygame.display.set_caption("Re:Gain")
 
     clock = pygame.time.Clock() 
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     font = pygame.font.Font('Fonts/Pixeltype.ttf', 50)
+
     sky = pygame.transform.rotozoom(pygame.image.load('Graphics/Sky.png').convert(), 0, 2)
     ground = pygame.transform.rotozoom(pygame.image.load('Graphics/ground.png').convert(), 0, 2)
+
+    # ------------------------
+    # SCROLLING OFFSETS 
+    # ------------------------
+    sky_x = 0
+    ground_x = 0
+
+    running = True
+    game_active = False
+
+    interface = Interface(screen, font)
+
+    player = pygame.sprite.GroupSingle()
+    player.add(Player())  # Player déjà repositionné plus à droite
+
+    obstacle_groupe = pygame.sprite.Group()
+
+    obstacle_timer = pygame.USEREVENT + 1
+    pygame.time.set_timer(obstacle_timer, 3500)
 
     running = True
     game_active = False
@@ -64,8 +89,11 @@ def main():
     player.add(Player())
     obstacle_groupe = pygame.sprite.Group()
     obstacle_timer = pygame.USEREVENT + 1
-    pygame.time.set_timer(obstacle_timer, 3000) 
+    pygame.time.set_timer(obstacle_timer, 3500) 
 
+    # ----------------------------------
+    # MAIN LOOP
+    # ----------------------------------
     while running: 
 
         for event in pygame.event.get(): 
@@ -85,9 +113,42 @@ def main():
             
         
         if game_active:
-            screen.blit(sky, (0,0))
-            screen.blit(ground, (0, Y_GROUND))
+            # -------------------------
+            # SCROLL UPDATE
+            # -------------------------
+            if player.sprite.moving or player.sprite.is_jumping:
+                scroll_speed = PLAYER_SPEED
 
+                sky_x -= scroll_speed * 0.3     # parallax
+                ground_x -= scroll_speed
+            
+
+            # -------------------------
+            # DRAW SKY 
+            # -------------------------
+            screen.blit(sky, (sky_x, 0))
+            screen.blit(sky, (sky_x + sky.get_width(), 0))
+            if sky_x <= -sky.get_width():
+                sky_x = 0
+
+            # -------------------------
+            # DRAW GROUND
+            # -------------------------
+            screen.blit(ground, (ground_x, Y_GROUND))
+            screen.blit(ground, (ground_x + ground.get_width(), Y_GROUND))
+            if ground_x <= -ground.get_width():
+                ground_x = 0
+
+
+            # ----------------------------------
+            # TEMPORARY EMG INPUT (mock)
+            # ----------------------------------
+            activation_norm = random() * 0.4  # simulate EMG activation in [0, 0.4]
+            user_model.update_from_emg(activation_norm)
+
+            # ----------------------------------
+            # UPDATE GAME OBJECTS
+            # ----------------------------------
             player.draw(screen)
             player.update()
 
@@ -95,6 +156,20 @@ def main():
             obstacle_groupe.update()
 
             game_active = player_obstacle_handling(player, obstacle_groupe)
+
+            # ----------------------------------
+            # DEBUG: observe user model state
+            # ----------------------------------
+            short_state = user_model.get_short_term_state()
+            long_state = user_model.get_long_term_state()
+
+            print(
+                f"EMG act: {short_state['activation']:.2f} | "
+                f"Prec: {short_state['precision']:.2f} | "
+                f"Fatigue: {long_state['fatigue']:.2f}"
+            )
+
+
             interface.update(game_active)
 
         else:

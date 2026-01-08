@@ -1,9 +1,9 @@
 import pygame
-from Classes.Config import Y_GROUND, WIDTH, JUMP_STRENGTH
+from Classes.Config import Y_GROUND, WIDTH, JUMP_STRENGTH, GRAVITY
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x=160, pos_y=Y_GROUND):
+    def __init__(self, pos_x=300, pos_y=Y_GROUND):
         super().__init__()
 
         # walk mechanisms
@@ -22,7 +22,9 @@ class Player(pygame.sprite.Sprite):
         # jump mechanisms
         self.jump = pygame.transform.rotozoom(pygame.image.load('Graphics/Player/jump.png').convert_alpha(), 0, 1.5)
         self.gravity = 0
+        self.coyote_timer = 0
         self.hitbox = self.rect.inflate(-26, -18)
+        self.is_jumping = False
 
 
     def player_input(self):
@@ -33,23 +35,32 @@ class Player(pygame.sprite.Sprite):
             if self.rect.right <= WIDTH:
                 self.moving = True 
 
-        if keys[pygame.K_SPACE]:
-            if self.rect.bottom == Y_GROUND:
+        if keys[pygame.K_SPACE] and self.rect.bottom == Y_GROUND:
+            if self.coyote_timer > 0:
                 self.gravity = -JUMP_STRENGTH
+                self.is_jumping = True
+                self.coyote_timer = 0
+
 
 
     def handle_movement(self):
         self.image = self.stand
 
+        # Update coyote time
+        if self.rect.bottom == Y_GROUND:
+            self.coyote_timer = 6   # ~100 ms at 60 FPS
+        else:
+            self.coyote_timer -= 1
+
         # Gravity for jumping
         if self.rect.bottom < Y_GROUND:
-            self.gravity += 1
+            self.gravity += GRAVITY
             self.rect.y += self.gravity
             self.image = self.jump
 
         elif self.rect.bottom == Y_GROUND:
             if self.gravity < 0: # first frame of jump
-                self.gravity += 1
+                self.gravity += GRAVITY
                 self.rect.y += self.gravity
                 self.image = self.jump
 
@@ -63,6 +74,11 @@ class Player(pygame.sprite.Sprite):
         else:  
             self.rect.bottom = Y_GROUND
 
+        if self.rect.bottom >= Y_GROUND:
+            self.rect.bottom = Y_GROUND
+            self.gravity = 0
+            self.is_jumping = False
+            
         self.hitbox.midbottom = self.rect.midbottom
 
 
