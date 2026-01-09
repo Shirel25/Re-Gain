@@ -50,3 +50,9 @@ OBSTACLE_MIN_HEIGHT = 30
 OBSTACLE_MAX_HEIGHT = 60
 OBSTACLE_SPEED = 4
 OBSTACLE_GROUND_OFFSET = -5
+
+# =====================
+# EMG calibration 
+# =====================
+EMG_BASELINE = 3.12
+EMG_MAX_ACTIVATION = 0.88

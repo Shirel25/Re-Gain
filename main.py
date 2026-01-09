@@ -4,6 +4,7 @@ import sys
 from config import TITLE
 from game.game import Game
 from input.input_manager import InputManager
+from calibration.calibration import fake_calibration
 
 
 # =========================
@@ -31,8 +32,11 @@ def main():
     # --- Create game ---
     game = Game(screen, sky_img, ground_img)
 
+    # --- Calibration (fake for now) ---
+    calibration = fake_calibration()
+
     # --- Create input manager ---
-    input_manager = InputManager(mode="keyboard")
+    input_manager = InputManager(mode="fake_emg", calibration=calibration)
 
     running = True
     while running:

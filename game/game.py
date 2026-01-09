@@ -1,8 +1,31 @@
+# ================================================================
+# GAME LOOP
+# - BOUCLE COURTE (loop 1): adaptation en temps réel
+#   -> interprétation du signal EMG
+#   -> vitesse de déplacement discrète (lente, normale, rapide)
+#
+# - BOUCLE LONGUE (loop 2): adaptation progressive de la difficulté
+#   -> apparition d'obstacles plus ou moins fréquente
+# ================================================================
+
 import pygame
+import random
 
 from config import FPS, GROUND_SURFACE_OFFSET, FOOT_MARGIN, PLAYER_FEET_OFFSET
 from entities.player import Player
 from entities.obstacle import Obstacle
+from input.input_manager import InputManager
+from entities.flag import Flag
+
+
+# ===========================================
+# BOUCLE COURTE
+# Discrete speed levels adapted in real time
+# ===========================================
+
+SPEED_SLOW = 2.0
+SPEED_NORMAL = 4.0
+SPEED_FAST = 6.0
 
 
 class Game:
@@ -17,6 +40,7 @@ class Game:
         # World
         self.world_offset = 0
         self.move_speed = 4
+    
 
         # Ground
         screen_height = self.screen.get_height()
@@ -26,18 +50,95 @@ class Game:
 
         # Entities
         self.player = Player(x=80, ground_y=self.ground_y)
+        
 
-        self.obstacles = [
-            Obstacle(world_x=400, ground_y=self.ground_y, width=60, height=80),
-            Obstacle(world_x=700, ground_y=self.ground_y, width=80, height=70),
-            Obstacle(world_x=1000, ground_y=self.ground_y, width=60, height=60),
-        ]
+        # Obstacles
+        self.obstacles = []
+        # --- Obstacle spawning ---
+        self.spawn_timer = 0.0
+
+
+        # ===========================================
+        # BOUCLE COURTE – Vitesse de déplacement
+        # ===========================================
+        self.current_speed_level = SPEED_NORMAL
+
+        # ===========================================
+        # BOUCLE LONGUE – Adaptation state (loop 2)
+        # ===========================================
+        self.obstacle_spawn_interval = 3.0   # seconds
+        self.min_spawn_interval = 1.5
+        self.max_spawn_interval = 5.0
+
+        self.long_term_timer = 0.0
+        self.LONG_TERM_WINDOW = 10.0  # seconds
+
+        # ===========================================
+        # FIN DE PARCOURS
+        # ===========================================
+        self.end_distance = 3000  # pixels
+        self.session_finished = False
+
+        self.flag = Flag(
+            world_x=self.end_distance,
+            ground_y=self.ground_y,
+        )
+
 
     # =========================
     # UPDATE
     # =========================
     def update(self, input_manager):
         self.clock.tick(FPS)
+
+        # ===========================================
+        # BOUCLE COURTE
+        # Vitesse lente, normale, rapide
+        # ===========================================
+        # --- Update movement speed from EMG (arm) ---
+        activation = input_manager.move_right_pressed()
+
+        # Access temporal stability from input
+        arm_stable = False
+        if hasattr(input_manager.input, "arm_stable_time"):
+            arm_stable = (
+                input_manager.input.arm_stable_time
+                >= input_manager.input.ARM_STABILITY_THRESHOLD
+            )
+
+        # Discrete speed adaptation (no continuous control)
+        if arm_stable:
+            if activation >= 0.25:
+                self.current_speed_level = SPEED_FAST
+            elif activation >= 0.15:
+                self.current_speed_level = SPEED_NORMAL
+            else:
+                self.current_speed_level = SPEED_SLOW
+        else:
+            # Safety fallback if control is unstable
+            self.current_speed_level = SPEED_SLOW
+            
+            
+        self.move_speed = self.current_speed_level
+
+        # ===========================================
+        # BOUCLE LONGUE – Temporal aggregation
+        # ===========================================
+        self.long_term_timer += 1.0 / FPS
+
+        if self.long_term_timer >= self.LONG_TERM_WINDOW:
+            self._adapt_difficulty(input_manager)
+            self.long_term_timer = 0.0
+
+        # ===========================================
+        # OBSTACLE SPAWNING (uses loop 2 parameters)
+        # ===========================================
+        self.spawn_timer += 1.0 / FPS
+
+        if self.spawn_timer >= self.obstacle_spawn_interval:
+            self._spawn_obstacle()
+            self.spawn_timer = 0.0
+
 
         # --- Update obstacle positions ---
         for obstacle in self.obstacles:
@@ -56,18 +157,20 @@ class Game:
                 foot_left < obstacle.rect.right
             )
 
-            vertical_ok = (
-                abs(
-                    self.player.rect.bottom
-                    - (obstacle.rect.top + PLAYER_FEET_OFFSET)
-                ) <= 5
-            )
+            if self.player.velocity_y >= 0:
+                previous_bottom = self.player.rect.bottom - self.player.velocity_y
+                current_bottom = self.player.rect.bottom
 
-            if horizontal_ok and vertical_ok:
-                self.player.ground_y = obstacle.rect.top + PLAYER_FEET_OFFSET
-                self.player.velocity_y = 0
-                player_on_obstacle = True
-                break
+                vertical_ok = (
+                    previous_bottom <= obstacle.rect.top + PLAYER_FEET_OFFSET
+                    and current_bottom >= obstacle.rect.top + PLAYER_FEET_OFFSET
+                )
+
+                if horizontal_ok and vertical_ok:
+                    self.player.ground_y = obstacle.rect.top + PLAYER_FEET_OFFSET
+                    self.player.velocity_y = 0
+                    player_on_obstacle = True
+                    break
 
         # --- Horizontal collision (blocking) ---
         blocked = False
@@ -96,6 +199,14 @@ class Game:
         # --- Physics ---
         self.player.update()
 
+        # --- Update flag position ---
+        self.flag.update_screen_position(self.world_offset)
+
+        # --- Check end of session ---
+        if self.player.rect.colliderect(self.flag.rect):
+            self.session_finished = True
+
+
     # =========================
     # DRAW
     # =========================
@@ -105,7 +216,10 @@ class Game:
         for obstacle in self.obstacles:
             obstacle.draw(self.screen)
 
+        self.flag.draw(self.screen)
         self.player.draw(self.screen)
+        
+
 
     # =========================
     # BACKGROUND
@@ -123,6 +237,64 @@ class Game:
         ground_height = self.ground_img.get_height()
         y = screen_height - ground_height
 
-        start_x = -(self.world_offset % ground_width)
+        start_x = -int(self.world_offset % ground_width)
         for x in range(start_x, screen_width, ground_width):
             self.screen.blit(self.ground_img, (x, y))
+
+
+    # ===================================================
+    # ADAPT DIFFICULTY (LOOP 2)
+    # ===================================================
+    def _adapt_difficulty(self, input_manager):
+        """
+        ===========================================
+        BOUCLE LONGUE – Difficulty adaptation (loop 2)
+        Adapt obstacle frequency based on control quality
+        ===========================================
+        """
+
+        # Retrieve control precision from EMG input
+        if hasattr(input_manager.input, "get_control_precision"):
+            control_precision = input_manager.input.get_control_precision()
+        else:
+            return
+
+        # Target control zone (from design document)
+        if control_precision < 0.4:
+            # Control is unstable → reduce difficulty
+            self.obstacle_spawn_interval = min(
+                self.obstacle_spawn_interval + 0.5,
+                self.max_spawn_interval
+            )
+
+        elif control_precision > 0.7:
+            # Control is stable → increase difficulty
+            self.obstacle_spawn_interval = max(
+                self.obstacle_spawn_interval - 0.5,
+                self.min_spawn_interval
+            )
+
+        # Else: keep current difficulty
+
+    def _spawn_obstacle(self):
+        """
+        Spawn a new obstacle at a fixed distance ahead.
+        Difficulty is controlled by obstacle_spawn_interval
+        (long-term adaptation loop).
+        """
+
+        spawn_x = self.world_offset + self.screen.get_width() + 100
+
+        width = random.choice([50, 60, 70])
+        height = random.choice([50, 60, 80])
+
+        obstacle = Obstacle(
+            world_x=spawn_x,
+            ground_y=self.ground_y,
+            width=width,
+            height=height
+        )
+
+        self.obstacles.append(obstacle)
+
+
