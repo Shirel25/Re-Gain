@@ -64,6 +64,23 @@ def main():
 
         pygame.display.flip()
 
+        if game.session_finished:
+            for event in events:
+                if event.type == pygame.QUIT:
+                    running = False
+
+                if game.session_finished and event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # left click
+                        mouse_pos = pygame.mouse.get_pos()
+
+                        if game.restart_button_rect and game.restart_button_rect.collidepoint(mouse_pos):
+                            main()   # relance une nouvelle session
+                            return
+
+                        if game.quit_button_rect and game.quit_button_rect.collidepoint(mouse_pos):
+                            running = False
+
+
     pygame.quit()
     sys.exit()
 

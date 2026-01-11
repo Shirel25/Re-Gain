@@ -10,6 +10,7 @@
 
 import pygame
 import random
+import time
 
 from config import FPS, GROUND_SURFACE_OFFSET, FOOT_MARGIN, PLAYER_FEET_OFFSET
 from entities.player import Player
@@ -57,6 +58,8 @@ class Game:
         # --- Obstacle spawning ---
         self.spawn_timer = 0.0
 
+        self.obstacles_passed = 0
+
 
         # ===========================================
         # BOUCLE COURTE – Vitesse de déplacement
@@ -75,14 +78,20 @@ class Game:
 
         # ===========================================
         # FIN DE PARCOURS
-        # ===========================================
-        self.end_distance = 3000  # pixels
-        self.session_finished = False
-
+        # ===========================================        
         self.flag = Flag(
-            world_x=self.end_distance,
+            world_x=3000, # distance de fin
             ground_y=self.ground_y,
         )
+
+        self.session_start_time = time.time()
+        self.session_finished = False
+
+        # ===========================================
+        # BOUTONS DE FIN DE SESSION
+        # ===========================================
+        self.restart_button_rect = None
+        self.quit_button_rect = None
 
 
     # =========================
@@ -91,6 +100,12 @@ class Game:
     def update(self, input_manager):
         self.clock.tick(FPS)
 
+        # =========================
+        # FREEZE GAME AFTER SESSION
+        # =========================
+        if self.session_finished:
+            return
+        
         # ===========================================
         # BOUCLE COURTE
         # Vitesse lente, normale, rapide
@@ -193,18 +208,36 @@ class Game:
         if input_manager.move_right_pressed() and not blocked:
             self.world_offset += self.move_speed
             self.player.set_moving(True)
+            self.player.world_x = self.world_offset
         else:
             self.player.set_moving(False)
 
         # --- Physics ---
         self.player.update()
 
+        # --- count passed obstacles ---
+        for obstacle in self.obstacles:
+            if not obstacle.passed:
+                if obstacle.world_x + obstacle.width < self.player.world_x:
+                    obstacle.passed = True
+                    self.obstacles_passed += 1
+
         # --- Update flag position ---
         self.flag.update_screen_position(self.world_offset)
 
         # --- Check end of session ---
-        if self.player.rect.colliderect(self.flag.rect):
-            self.session_finished = True
+        if not self.session_finished:
+            if self.player.world_x >= self.flag.world_x:
+                self.session_finished = True
+                self.session_time = time.time() - self.session_start_time
+                print("🏁 FIN DE SESSION")
+                print("Temps :", round(self.session_time, 2))
+                print("Obstacles :", self.obstacles_passed)
+
+
+        if self.session_finished:
+            return
+
 
 
     # =========================
@@ -219,6 +252,8 @@ class Game:
         self.flag.draw(self.screen)
         self.player.draw(self.screen)
         
+        if self.session_finished:
+            self.draw_end_session_overlay()
 
 
     # =========================
@@ -297,4 +332,81 @@ class Game:
 
         self.obstacles.append(obstacle)
 
+    # ===================================================
+    # END OF SESSION
+    # ===================================================
+    def draw_end_session_overlay(self):
+        # --- Dark transparent overlay ---
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))  # black with alpha
+        self.screen.blit(overlay, (0, 0))
+
+        # --- Result box ---
+        box_width = 400
+        box_height = 220
+        box_x = (self.screen.get_width() - box_width) // 2
+        box_y = (self.screen.get_height() - box_height) // 2
+
+        pygame.draw.rect(
+            self.screen,
+            (240, 240, 240),
+            (box_x, box_y, box_width, box_height),
+            border_radius=12
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (0, 0, 0),
+            (box_x, box_y, box_width, box_height),
+            2,
+            border_radius=12
+        )
+
+        # --- Text ---
+        font_title = pygame.font.Font(None, 42)
+        font_text = pygame.font.Font(None, 32)
+
+        title = font_title.render("Session finished", True, (0, 0, 0))
+        time_text = font_text.render(
+            f"Time: {round(self.session_time, 2)} s", True, (0, 0, 0)
+        )
+        obstacles_text = font_text.render(
+            f"Obstacles passed: {self.obstacles_passed}", True, (0, 0, 0)
+        )
+
+        self.screen.blit(title, (box_x + 100, box_y + 25))
+        self.screen.blit(time_text, (box_x + 40, box_y + 100))
+        self.screen.blit(obstacles_text, (box_x + 40, box_y + 140))
+
+        # --- Buttons ---
+        button_width = 140
+        button_height = 45
+        button_y = box_y + 170
+
+        restart_x = box_x + 40
+        quit_x = box_x + box_width - button_width - 40
+
+        self.restart_button_rect = pygame.Rect(
+            restart_x, button_y, button_width, button_height
+        )
+        self.quit_button_rect = pygame.Rect(
+            quit_x, button_y, button_width, button_height
+        )
+
+        pygame.draw.rect(self.screen, (80, 170, 80), self.restart_button_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (170, 80, 80), self.quit_button_rect, border_radius=8)
+
+        font_button = pygame.font.Font(None, 30)
+
+        restart_text = font_button.render("Restart", True, (255, 255, 255))
+        quit_text = font_button.render("Quit", True, (255, 255, 255))
+
+        self.screen.blit(
+            restart_text,
+            restart_text.get_rect(center=self.restart_button_rect.center)
+        )
+        self.screen.blit(
+            quit_text,
+            quit_text.get_rect(center=self.quit_button_rect.center)
+        )
 

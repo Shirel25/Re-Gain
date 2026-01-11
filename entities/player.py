@@ -24,6 +24,9 @@ class Player:
         self.rect = self.current_image.get_rect()
         self.rect.x = x
         self.rect.bottom = ground_y
+        
+        # Position
+        self.world_x = 0
 
         # Physics
         self.velocity_y = 0
@@ -65,6 +68,7 @@ class Player:
 
         else:
             self.current_image = self.idle_image
+
 
     def jump(self):
         if self.on_ground:

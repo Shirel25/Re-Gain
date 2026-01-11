@@ -5,7 +5,9 @@ from config import OBSTACLE_GROUND_OFFSET
 class Obstacle:
     def __init__(self, world_x, ground_y, width, height):
         self.world_x = world_x
-
+        self.width = width
+        self.height = height
+        self.passed = False # nb d'obstacles passés
         self.ground_y = ground_y  # store collision ground
 
         self.rect = pygame.Rect(
@@ -14,7 +16,7 @@ class Obstacle:
             width,
             height
         )
-
+        
 
     def update_screen_position(self, world_offset):
         self.rect.x = self.world_x - world_offset
