@@ -17,6 +17,7 @@ from entities.player import Player
 from entities.obstacle import Obstacle
 from input.input_manager import InputManager
 from entities.flag import Flag
+from game.feedback_bars import FeedbackBars
 
 
 # ===========================================
@@ -60,6 +61,10 @@ class Game:
 
         self.obstacles_passed = 0
 
+        # --- Feedback bars ---
+        self.feedback_bars = FeedbackBars()
+        self.arm_feedback_value = 0.0
+        self.leg_feedback_value = 0.0
 
         # ===========================================
         # BOUCLE COURTE – Vitesse de déplacement
@@ -135,6 +140,34 @@ class Game:
             
             
         self.move_speed = self.current_speed_level
+
+        # =========================
+        # FEEDBACK BARS 
+        # =========================
+        # ARM target value (from speed)
+        arm_target = (
+            self.current_speed_level - SPEED_SLOW
+        ) / (SPEED_FAST - SPEED_SLOW)
+
+        # Smooth transition (EMA)
+        alpha = 0.15  # smoothing factor
+        self.arm_feedback_value += alpha * (arm_target - self.arm_feedback_value)
+
+        arm_activation = self.arm_feedback_value
+
+
+        # LEG feedback = progressive jump effort
+        if not self.player.on_ground:
+            # montée progressive pendant le saut
+            self.leg_feedback_value = min(self.leg_feedback_value + 0.08, 1.0)
+        else:
+            # redescente douce au repos
+            self.leg_feedback_value = max(self.leg_feedback_value - 0.05, 0.0)
+
+        leg_activation = self.leg_feedback_value
+
+
+        self.feedback_bars.update(arm_activation, leg_activation)
 
         # ===========================================
         # BOUCLE LONGUE – Temporal aggregation
@@ -251,6 +284,7 @@ class Game:
 
         self.flag.draw(self.screen)
         self.player.draw(self.screen)
+        self.feedback_bars.draw(self.screen)
         
         if self.session_finished:
             self.draw_end_session_overlay()
@@ -363,8 +397,8 @@ class Game:
         )
 
         # --- Text ---
-        font_title = pygame.font.Font(None, 42)
-        font_text = pygame.font.Font(None, 32)
+        font_title = pygame.font.Font("Fonts/Pixeltype.ttf", 42)
+        font_text = pygame.font.Font("Fonts/Pixeltype.ttf", 32)
 
         title = font_title.render("Session finished", True, (0, 0, 0))
         time_text = font_text.render(

@@ -1,20 +1,21 @@
 from input.keyboard import KeyboardInput
-from config import EMG_BASELINE, EMG_MAX_ACTIVATION
+from config import MAC_ADDRESS, EMG_BASELINE, EMG_MAX_ACTIVATION
 from input.fake_emg import FakeEMGInput
-from input.emg import EMGInput
+from input.emg import EMGInput, DualEMGInput
 
 
 class InputManager:
-    def __init__(self, mode="keyboard", calibration=None):
+    def __init__(self, mode="keyboard", calibration=None, device=None):
         self.mode = mode
         self.calibration = calibration
+        self.device = device
 
         if self.mode == "keyboard":
             self.input = KeyboardInput()
         
         elif self.mode == "emg":
             self.input = EMGInput(
-                mac_address="20:18:08:08:02:30",
+                mac_address=MAC_ADDRESS,
                 baseline=EMG_BASELINE,
                 max_activation=EMG_MAX_ACTIVATION
             )
@@ -22,6 +23,14 @@ class InputManager:
         elif self.mode == "fake_emg":
             self.input = FakeEMGInput()
     
+        elif self.mode == "dual_emg":
+            self.input = DualEMGInput(
+                    device=self.device,
+                    arm_channel=5,  # A5
+                    leg_channel=3,  # A2
+                    calibration=calibration
+                )
+
         else:
             raise ValueError("Unknown input mode")
 
@@ -29,7 +38,7 @@ class InputManager:
         if self.mode == "keyboard":
             self.input.update(events)
             
-        elif self.mode in ["emg", "fake_emg"]:
+        elif self.mode in ["emg", "fake_emg", "dual_emg"]:
             self.input.update()
 
     def jump_pressed(self):

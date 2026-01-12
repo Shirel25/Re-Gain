@@ -61,3 +61,15 @@ def fake_calibration():
 
     return calibration
 
+# =============================================================================
+
+class MuscleCalibration:
+    def __init__(self, baseline, max_activation, mod_mean):
+        self.baseline = baseline
+        self.max_activation = max_activation
+        self.mod_mean = mod_mean
+
+        # Zones personnalisées (adaptatives)
+        self.control_min = mod_mean / max_activation if max_activation > 0 else 0.2
+        self.control_max = 0.7
+        self.jump_threshold = 0.6

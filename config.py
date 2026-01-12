@@ -2,6 +2,11 @@
 # Global configuration for Re:Gain (Mario-like prototype)
 
 # =====================
+# MAC ADRESSE
+# =====================
+MAC_ADDRESS = "20:18:08:08:02:30"
+
+# =====================
 # Window
 # =====================
 WIDTH = 900

@@ -12,91 +12,94 @@ SAMPLING_RATE = 1000
 WINDOW_SIZE = 300
 GAIN = 10
 
-# =========================
-# Connection
-# =========================
+if __name__ == "__main__":
+    print("Script de test EMG")
 
-device = BITalino(MAC_ADDRESS)
-device.start(SAMPLING_RATE, [EMG_CHANNEL])
+    # =========================
+    # Connection
+    # =========================
 
-data = device.read(WINDOW_SIZE)
-print("Shape:", data.shape)
-print("First row:", data[0])
+    device = BITalino(MAC_ADDRESS)
+    device.start(SAMPLING_RATE, [EMG_CHANNEL])
 
-# =========================
-# Utils
-# =========================
+    data = device.read(WINDOW_SIZE)
+    print("Shape:", data.shape)
+    print("First row:", data[0])
 
-def countdown(seconds):
-    for i in range(seconds, 0, -1):
-        print(i)
-        time.sleep(1)
+    # =========================
+    # Utils
+    # =========================
 
-# =========================
-# Recording function
-# =========================
+    def countdown(seconds):
+        for i in range(seconds, 0, -1):
+            print(i)
+            time.sleep(1)
 
-def record_phase(device, duration, label):
-    print(f"\n{label}")
-    print("Prépare-toi...")
-    countdown(3)
-    print("ENREGISTREMENT")
+    # =========================
+    # Recording function
+    # =========================
 
-    activation_values = []
-    start = time.time()
+    def record_phase(device, duration, label):
+        print(f"\n{label}")
+        print("Prépare-toi...")
+        countdown(3)
+        print("ENREGISTREMENT")
 
-    activation_prev = 0.0
-    alpha = 0.8
+        activation_values = []
+        start = time.time()
 
-    while time.time() - start < duration:
-        data = device.read(WINDOW_SIZE)
+        activation_prev = 0.0
+        alpha = 0.8
 
-        emg = data[:, 5]                 # A5 (EMG)
-        emg = emg - np.mean(emg)        # suppression offset DC
+        while time.time() - start < duration:
+            data = device.read(WINDOW_SIZE)
 
-        emg_rect = np.abs(emg)
-        envelope = np.mean(emg_rect)
+            emg = data[:, 5]                 # A5 (EMG)
+            emg = emg - np.mean(emg)        # suppression offset DC
 
-        activation = envelope * GAIN
+            emg_rect = np.abs(emg)
+            envelope = np.mean(emg_rect)
 
-        activation_smooth = alpha * activation_prev + (1 - alpha) * activation
-        activation_prev = activation_smooth
+            activation = envelope * GAIN
 
-        activation_values.append(activation_smooth)
+            activation_smooth = alpha * activation_prev + (1 - alpha) * activation
+            activation_prev = activation_smooth
 
-        print(f"Activation (smooth): {activation_smooth:.2f}")
+            activation_values.append(activation_smooth)
+
+            print(f"Activation (smooth): {activation_smooth:.2f}")
 
 
-    return np.array(activation_values)
+        return np.array(activation_values)
 
-# =========================
-# Calibration protocol
-# =========================
+    # =========================
+    # Calibration protocol
+    # =========================
 
-# Repos → baseline
-activation_rest = record_phase(device, 10, "Repos (muscle relâché)")
-baseline = np.mean(activation_rest)
+    # Repos → baseline
+    activation_rest = record_phase(device, 10, "Repos (muscle relâché)")
+    baseline = np.mean(activation_rest)
 
-print(f"\nBaseline (repos): {baseline:.2f}")
+    print(f"\nBaseline (repos): {baseline:.2f}")
 
-# Contraction modérée
-activation_mod = record_phase(device, 12, "Contraction modérée")
-activation_mod_corr = np.maximum(0, activation_mod - baseline)
+    # Contraction modérée
+    activation_mod = record_phase(device, 12, "Contraction modérée")
+    activation_mod_corr = np.maximum(0, activation_mod - baseline)
 
-# Contraction forte
-activation_max = record_phase(device, 6, "Contraction forte")
-activation_max_corr = np.maximum(0, activation_max - baseline)
+    # Contraction forte
+    activation_max = record_phase(device, 6, "Contraction forte")
+    activation_max_corr = np.maximum(0, activation_max - baseline)
 
-# =========================
-# Results
-# =========================
+    # =========================
+    # Results
+    # =========================
 
-print("\nCalibration terminée (après tare)")
-print(f"Modérée (mean) : {np.mean(activation_mod_corr):.2f}")
-print(f"Forte   (max)  : {np.max(activation_max_corr):.2f}")
+    print("\nCalibration terminée (après tare)")
+    print(f"Modérée (mean) : {np.mean(activation_mod_corr):.2f}")
+    print(f"Forte   (max)  : {np.max(activation_max_corr):.2f}")
 
-print("\nNormalisation possible :")
-print("Activation_norm = (activation - baseline) / max_activation")
+    print("\nNormalisation possible :")
+    print("Activation_norm = (activation - baseline) / max_activation")
 
-device.stop()
-device.close()
+    device.stop()
+    device.close()

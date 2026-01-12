@@ -1,11 +1,14 @@
 import pygame
 import sys
+import time
 
-from config import TITLE
+from bitalino import BITalino
+from config import TITLE, MAC_ADDRESS
 from game.game import Game
 from input.input_manager import InputManager
 from calibration.calibration import fake_calibration
-
+from calibration.real_calibration import real_calibration
+from input.emg import DualEMGInput
 
 # =========================
 # LOAD IMAGES
@@ -20,6 +23,16 @@ def load_images():
 # MAIN
 # =========================
 def main():
+    # --- Calibration ---
+    calibration = real_calibration()
+    print("\nCalibration terminée. Lancement du jeu...")
+    time.sleep(1)
+
+    # --- Device ---
+    device = BITalino(MAC_ADDRESS)
+    device.start(1000, [5, 2])  # ARM + LEG # A5 est le premier canal analogique -> Colonne 5
+                                            # A2 est le deuxième canal analogique -> Colonne 6
+
     # --- Init pygame ---
     pygame.init()
     info = pygame.display.Info()
@@ -32,11 +45,8 @@ def main():
     # --- Create game ---
     game = Game(screen, sky_img, ground_img)
 
-    # --- Calibration (fake for now) ---
-    calibration = fake_calibration()
-
     # --- Create input manager ---
-    input_manager = InputManager(mode="fake_emg", calibration=calibration)
+    input_manager = InputManager(mode="dual_emg", calibration=calibration, device=device)
 
     running = True
     while running:
@@ -80,6 +90,14 @@ def main():
                         if game.quit_button_rect and game.quit_button_rect.collidepoint(mouse_pos):
                             running = False
 
+
+        # ==== Test ====
+        if isinstance(input_manager.input, DualEMGInput):
+            print(
+                f"ARM={input_manager.input.arm_activation:.2f} | "
+                f"LEG={input_manager.input.leg_activation:.2f}",
+                end="\r"
+            )
 
     pygame.quit()
     sys.exit()
