@@ -27,7 +27,7 @@ class InputManager:
             self.input = DualEMGInput(
                     device=self.device,
                     arm_channel=5,  # A5
-                    leg_channel=3,  # A2
+                    leg_channel=2,  # A2
                     calibration=calibration
                 )
 

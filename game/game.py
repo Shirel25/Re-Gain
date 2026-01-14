@@ -238,12 +238,17 @@ class Game:
                             break
 
         # --- World movement ---
+        # === Move forward ===
         if input_manager.move_right_pressed() and not blocked:
             self.world_offset += self.move_speed
             self.player.set_moving(True)
             self.player.world_x = self.world_offset
         else:
             self.player.set_moving(False)
+
+        # === Jump ===
+        if input_manager.jump_pressed() and self.player.on_ground:
+            self.player.jump()
 
         # --- Physics ---
         self.player.update()
