@@ -62,3 +62,10 @@ OBSTACLE_GROUND_OFFSET = -5
 # =====================
 EMG_BASELINE = 3.12
 EMG_MAX_ACTIVATION = 0.88
+
+# =====================
+# Cluster states
+# =====================
+REST = 0
+ACTIVE = 1
+OVERLOAD = 2

@@ -23,15 +23,21 @@ def load_images():
 # MAIN
 # =========================
 def main():
-    # --- Calibration ---
-    calibration = real_calibration()
-    print("\nCalibration terminée. Lancement du jeu...")
-    time.sleep(1)
+    # # --- Calibration ---
+    # calibration = real_calibration()
+    # print("\nCalibration terminée. Lancement du jeu...")
+    # time.sleep(1)
 
-    # --- Device ---
-    device = BITalino(MAC_ADDRESS)
-    device.start(1000, [5, 2])  # ARM + LEG # A5 est le premier canal analogique -> Colonne 5
-                                            # A2 est le deuxième canal analogique -> Colonne 6
+    # # --- Device ---
+    # device = BITalino(MAC_ADDRESS)
+    # device.start(1000, [5, 2])  # ARM + LEG # A5 est le premier canal analogique -> Colonne 5
+    #                                         # A2 est le deuxième canal analogique -> Colonne 6
+
+    # --- Calibration ---
+    calibration = fake_calibration()
+    device = None
+    print("\nFake calibration utilisée. Lancement du jeu...")
+    time.sleep(1)
 
     # --- Init pygame ---
     pygame.init()
@@ -46,7 +52,7 @@ def main():
     game = Game(screen, sky_img, ground_img)
 
     # --- Create input manager ---
-    input_manager = InputManager(mode="dual_emg", calibration=calibration, device=device)
+    input_manager = InputManager(mode="fake_emg", calibration=calibration, device=device)
 
     running = True
     while running:
@@ -70,7 +76,7 @@ def main():
         # Update & Draw
         # =====================
         game.update(input_manager)
-        game.draw()
+        game.draw(input_manager)
 
         pygame.display.flip()
 
