@@ -53,6 +53,7 @@ def main():
 
     # --- Create input manager ---
     input_manager = InputManager(mode="fake_emg", calibration=calibration, device=device)
+    input_manager.start_session(session_index=1, fresh=True)   # UPDATED; first session, no fatigue
 
     running = True
     while running:
@@ -68,7 +69,7 @@ def main():
         # --- Update inputs ---
         input_manager.update(events)
 
-        # --- Jump ---
+        # --- Jump --- # 
         if input_manager.jump_pressed():
             game.player.jump()
 
@@ -84,17 +85,30 @@ def main():
             for event in events:
                 if event.type == pygame.QUIT:
                     running = False
+                    
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mouse_pos = pygame.mouse.get_pos()
 
-                if game.session_finished and event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # left click
-                        mouse_pos = pygame.mouse.get_pos()
+                    # UPDATED; fatigue resume button
+                    if game.fatigued and game.fatigue_resume_button_rect and game.fatigue_resume_button_rect.collidepoint(mouse_pos):
+                        game.fatigued = False
+                        input_manager.reset_fatigue_after_rest()
 
+                    # --- end-session buttons ---
+                    if game.session_finished:
+                    
                         if game.restart_button_rect and game.restart_button_rect.collidepoint(mouse_pos):
                             main()   # relance une nouvelle session
                             return
 
                         if game.quit_button_rect and game.quit_button_rect.collidepoint(mouse_pos):
                             running = False
+                            
+                        if game.continue_button_rect and game.continue_button_rect.collidepoint(mouse_pos):
+                            game.continue_session(input_manager) #UPDATED; continue the session
+                            
+
+
 
 
         # ==== Test ====

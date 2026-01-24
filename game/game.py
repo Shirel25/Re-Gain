@@ -17,6 +17,7 @@
 # 
 # ================================================================
 
+from input import input_manager
 import pygame
 import random
 import time
@@ -113,6 +114,30 @@ class Game:
         # ===========================================
         self.restart_button_rect = None
         self.quit_button_rect = None
+        
+        
+        # UPDATED; fatigue management
+        # ===========================================
+        # FATIGUE DETECTION (STATE ONLY)
+        # ===========================================
+        self.fatigue = 0.0          # [0..1]
+        self.fatigued = False       # fatigue event triggered?
+
+        # tuning parameters (seconds-based)
+        self.FATIGUE_THRESHOLD = 1.0     # when fatigue triggers
+        self.FATIGUE_GROWTH = 0.12       # per second at high effort
+        self.FATIGUE_RECOVERY = 0.20     # per second when resting
+
+        # ===========================================   
+        
+        self.continue_count = 0 # UPDATED; count how many times the player continued the session
+        self.continue_speed_mult = 1.0
+        
+        self.speed_sum = 0.0 # UPDATED; for average speed calculation
+        self.speed_samples = 0
+        self.fatigue_resume_button_rect = None
+        
+        self.sessions_completed = 0 # UPDATED; count completed sessions
 
 
     # =========================
@@ -131,11 +156,16 @@ class Game:
         # BOUCLE COURTE - appliquée depuis InputManager
         # ===========================================
         if input_manager.move_right_pressed():
-            self.move_speed = input_manager.move_speed
+            # self.move_speed = input_manager.move_speed
+            self.move_speed = input_manager.move_speed * self.continue_speed_mult # UPDATED; apply continue speed multiplier
+
         else:
             self.move_speed = 0.0
 
-            
+  
+        self.speed_sum += self.move_speed # UPDATED; for average speed calculation
+        self.speed_samples += 1
+
 
         # =========================
         # FEEDBACK BARS 
@@ -277,22 +307,41 @@ class Game:
         self.player.ground_y = support_y
 
 
+        # # --- Horizontal collision (blocking) ---
+        # blocked = False
+        # if input_manager.move_right_pressed():
+        #     future_rect = self.player.rect.copy()
+        #     future_rect.x += self.move_speed
+
+        #     for obstacle in self.obstacles:
+        #         if future_rect.colliderect(obstacle.rect):
+        #             if obstacle.rect.left >= self.player.rect.right:
+        #                 if (
+        #                     self.player.rect.bottom
+        #                     > obstacle.rect.top + 5
+        #                     and not player_on_obstacle
+        #                 ):
+        #                     blocked = True
+        #                     break
+        
+        
+        # UPDATED; fixed horizontal collision detection
         # --- Horizontal collision (blocking) ---
-        blocked = False
+        blocked = False        
         if input_manager.move_right_pressed():
             future_rect = self.player.rect.copy()
             future_rect.x += self.move_speed
 
             for obstacle in self.obstacles:
                 if future_rect.colliderect(obstacle.rect):
-                    if obstacle.rect.left >= self.player.rect.right:
-                        if (
-                            self.player.rect.bottom
-                            > obstacle.rect.top + 5
-                            and not player_on_obstacle
-                        ):
-                            blocked = True
-                            break
+                    # solid collision if not standing on top of the obstacle
+                    if self.player.rect.bottom > obstacle.rect.top + 5 and not player_on_obstacle:
+                        blocked = True
+                        break
+
+                
+        
+        
 
         # --- World movement ---
         # === Move forward ===
@@ -334,14 +383,24 @@ class Game:
         if not self.session_finished:
             if self.player.world_x >= self.flag.world_x:
                 self.session_finished = True
+                self.sessions_completed += 1  
                 self.session_time = time.time() - self.session_start_time
                 print("🏁 FIN DE SESSION")
                 print("Temps :", round(self.session_time, 2))
                 print("Obstacles :", self.obstacles_passed)
+                if input_manager.fatigue_tracker.end_of_session_fatigued(): # UPDATED; fatigue detection
+                    self.fatigued = True
 
+        if input_manager.is_fatigued(): # UPDATED; fatigue detection
+            self.fatigued = True   # your overlay state
+            return
 
         if self.session_finished:
             return
+
+        if self.fatigued:
+            return
+
 
 
 
@@ -361,6 +420,11 @@ class Game:
         self._draw_hud(input_manager)
 
         if self.session_finished:
+            self.draw_end_session_overlay()
+            
+        if self.fatigued: # UPDATED; fatigue detection
+            self.draw_fatigue_overlay()
+        elif self.session_finished:
             self.draw_end_session_overlay()
 
 
@@ -423,7 +487,6 @@ class Game:
         self.screen.blit(speed_text, (20, 20))
         self.screen.blit(diff_text, (20, 50))
 
-
     # ===================================================
     # ADAPT DIFFICULTY (LOOP 2)
     # ===================================================
@@ -451,13 +514,23 @@ class Game:
         )
 
         precision = input_manager.get_control_precision()
-        speed = input_manager.get_mean_speed()
         difficulty = input_manager.get_difficulty_score()
+        speed = input_manager.get_mean_speed()
+        
+        if self.speed_samples > 0: # UPDATED; average speed calculation
+            avg_speed = self.speed_sum / self.speed_samples
+        else:
+            avg_speed = 0.0
+        # reset window
+        self.speed_sum = 0.0
+        self.speed_samples = 0
+
 
         print(
             f"[LONG LOOP] "
             f"precision={precision:.2f} | "
-            f"speed={speed:.2f} | "
+            # f"speed={speed:.2f} | "
+            f"avg_speed={avg_speed:.2f} | "
             f"difficulty={difficulty:.2f} | "
             f"spawn={self.obstacle_spawn_interval:.2f} | "
             f"dist={self.min_obstacle_distance} | "
@@ -532,8 +605,9 @@ class Game:
         self.screen.blit(overlay, (0, 0))
 
         # --- Result box ---
-        box_width = 400
-        box_height = 220
+        # box_width = 400
+        box_width = 560 # UPDATED; wider for 3 buttons
+        box_height = 250
         box_x = (self.screen.get_width() - box_width) // 2
         box_y = (self.screen.get_height() - box_height) // 2
 
@@ -563,42 +637,178 @@ class Game:
         obstacles_text = font_text.render(
             f"Obstacles passed: {self.obstacles_passed}", True, (0, 0, 0)
         )
+        
+        session_text = font_text.render(
+            f"Sessions completed: {self.sessions_completed}", True, (0, 0, 0)
+        )
 
         self.screen.blit(title, (box_x + 100, box_y + 25))
+        self.screen.blit(session_text, (box_x + 40,  box_y + 70))
         self.screen.blit(time_text, (box_x + 40, box_y + 100))
         self.screen.blit(obstacles_text, (box_x + 40, box_y + 140))
 
-        # --- Buttons ---
+        # --- Buttons --- # UPDATED
         button_width = 140
         button_height = 45
-        button_y = box_y + 170
+        button_y = box_y + 200
 
-        restart_x = box_x + 40
-        quit_x = box_x + box_width - button_width - 40
+        restart_x = box_x + 30
+        continue_x = box_x + (box_width - button_width) // 2
+        quit_x = box_x + box_width - button_width - 30
 
-        self.restart_button_rect = pygame.Rect(
-            restart_x, button_y, button_width, button_height
-        )
-        self.quit_button_rect = pygame.Rect(
-            quit_x, button_y, button_width, button_height
-        )
+        self.restart_button_rect = pygame.Rect(restart_x, button_y, button_width, button_height)
+        self.continue_button_rect = pygame.Rect(continue_x, button_y, button_width, button_height)
+        self.quit_button_rect = pygame.Rect(quit_x, button_y, button_width, button_height)
 
         pygame.draw.rect(self.screen, (80, 170, 80), self.restart_button_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (80, 120, 200), self.continue_button_rect, border_radius=8)
         pygame.draw.rect(self.screen, (170, 80, 80), self.quit_button_rect, border_radius=8)
 
         font_button = pygame.font.Font(None, 30)
 
         restart_text = font_button.render("Restart", True, (255, 255, 255))
+        continue_text = font_button.render("Continue", True, (255, 255, 255))
         quit_text = font_button.render("Quit", True, (255, 255, 255))
 
-        self.screen.blit(
-            restart_text,
-            restart_text.get_rect(center=self.restart_button_rect.center)
-        )
-        self.screen.blit(
-            quit_text,
-            quit_text.get_rect(center=self.quit_button_rect.center)
-        )
+        self.screen.blit(restart_text, restart_text.get_rect(center=self.restart_button_rect.center))
+        self.screen.blit(continue_text, continue_text.get_rect(center=self.continue_button_rect.center))
+        self.screen.blit(quit_text, quit_text.get_rect(center=self.quit_button_rect.center))
 
+
+        
+    def continue_session(self, input_manager, extra_distance=2500): # UPDATED; continue the session from the current position
+        label = input_manager.get_difficulty_label()
+
+        # number of times the user continued (1,2,3,...)
+        self.continue_count += 1
+
+        if label == "beginner":
+            # keep same speed across continues
+            pass
+
+        if label == "intermediate":
+            if self.continue_count == 1:
+                self.continue_speed_mult = 1.35   # immediate noticeable
+            else:
+                self.continue_speed_mult = min(self.continue_speed_mult * 1.18, 2.6)
+
+        elif label == "advanced":
+            if self.continue_count == 1:
+                self.continue_speed_mult = 1.55
+            else:
+                self.continue_speed_mult = min(self.continue_speed_mult * 1.28, 3.5)
+        # -------------------------
+        # OBSTACLE POLICY
+        # -------------------------
+        # "same number" for beginner + intermediate, "more" for advanced
+        same_count = 5
+        target_obstacles = 8 if label == "advanced" else same_count
+
+        # For advanced, also make spacing a bit tighter (denser)
+        if label == "advanced":
+            self.min_obstacle_distance = max(110, int(self.min_obstacle_distance * 0.85))
+            self.max_obstacles_on_screen = min(10, max(self.max_obstacles_on_screen, 7))
+
+        # -------------------------
+        # Ensure the continued segment is long enough
+        # so we can fit the target obstacles
+        # -------------------------
+        min_needed = int(target_obstacles * self.min_obstacle_distance + 800)
+        extra_distance = max(extra_distance, min_needed)
+
+        # Push finish line relative to *current* position (robust)
+        self.flag.world_x = int(self.world_offset + extra_distance)
+
+        # -------------------------
+        # Resume session state
+        # -------------------------
+        self.session_finished = False
+        self.session_start_time = time.time()
+        self.last_jump_obstacle = None
+
+        # Optional: if you want each continued segment to be a “fresh run”
+        # keep obstacles_passed reset or not. Your call.
+        self.obstacles_passed = 0
+
+        # -------------------------
+        # Clear & repopulate obstacles immediately
+        # -------------------------
+        self.obstacles.clear()
+        self.spawn_timer = 0.0
+        self.last_spawn_x = int(self.world_offset)
+
+        # Place obstacles across the segment
+        start_x = int(self.world_offset + 350)
+        end_x = int(self.flag.world_x - 250)
+
+        if end_x <= start_x + self.min_obstacle_distance:
+            # extremely short (shouldn't happen due to min_needed),
+            # but keep safe.
+            end_x = start_x + self.min_obstacle_distance * target_obstacles
+
+        usable = end_x - start_x
+        spacing = max(self.min_obstacle_distance, usable // target_obstacles)
+
+        x = start_x
+        for _ in range(target_obstacles):
+            x += spacing
+            if x >= end_x:
+                break
+
+            width = random.choice([50, 60, 70])
+            height = random.choice([50, 60, 80])
+            self.obstacles.append(
+                Obstacle(world_x=int(x), ground_y=self.ground_y, width=width, height=height)
+            )
+            self.last_spawn_x = int(x)
+
+        # Force normal spawning to continue soon after
+        self.spawn_timer = 0.0
+
+        print(
+            f"[CONTINUE] label={label} "
+            f"count={self.continue_count} "
+            f"speed_mult={self.continue_speed_mult:.2f} "
+            f"target_obs={target_obstacles} "
+            f"flag={self.flag.world_x}"
+        )
+        
+        # session 2 (or 3,4...) starts here. Keep baseline from session 1.
+        input_manager.start_session(session_index=1 + self.continue_count, fresh=False)
+
+    
+    def draw_fatigue_overlay(self): # UPDATED; fatigue detection
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        self.screen.blit(overlay, (0, 0))
+
+        box_w, box_h = 600, 240
+        box_x = (self.screen.get_width() - box_w) // 2
+        box_y = (self.screen.get_height() - box_h) // 2
+
+        pygame.draw.rect(self.screen, (240,240,240), (box_x, box_y, box_w, box_h), border_radius=12)
+        pygame.draw.rect(self.screen, (0,0,0), (box_x, box_y, box_w, box_h), 2, border_radius=12)
+
+        font_title = pygame.font.Font("Fonts/Pixeltype.ttf", 42)
+        font_text  = pygame.font.Font("Fonts/Pixeltype.ttf", 30)
+
+        title = font_title.render("You seem you might enjoy some rest!", True, (0,0,0))
+        hint  = font_text.render("Take a moment, then press Resume.", True, (0,0,0))
+
+        self.screen.blit(title, title.get_rect(center=(box_x + box_w//2, box_y + 70)))
+        self.screen.blit(hint,  hint.get_rect(center=(box_x + box_w//2, box_y + 120)))
+
+        # Resume button
+        bw, bh = 180, 50
+        bx = box_x + (box_w - bw)//2
+        by = box_y + 165
+        self.fatigue_resume_button_rect = pygame.Rect(bx, by, bw, bh)
+
+        pygame.draw.rect(self.screen, (80, 120, 200), self.fatigue_resume_button_rect, border_radius=10)
+        resume = font_text.render("Resume", True, (255,255,255))
+        self.screen.blit(resume, resume.get_rect(center=self.fatigue_resume_button_rect.center))
+
+            
+            
 
 

@@ -4,8 +4,9 @@ from input.keyboard import KeyboardInput
 from config import MAC_ADDRESS, EMG_BASELINE, EMG_MAX_ACTIVATION
 from config import REST, ACTIVE, OVERLOAD
 from input.fake_emg import FakeEMGInput
-from input.emg import EMGInput, DualEMGInput
+from input.emg import EMGInput, DualEMGInput, FatigueTracker
 from models.k_means_model import KMeansModel
+
 
 class InputManager:
     def __init__(self, mode="keyboard", calibration=None, device=None):
@@ -62,6 +63,17 @@ class InputManager:
 
         self.mean_arm_activation = 0.0
         self.arm_samples = 0
+        
+        self.fatigue_enabled_global = False # UPDATED; MAKE IT FALSE TO DISABLE FATIGUE SIMULATION!!!
+        
+        # -------------------------------------------------
+        
+       
+        self.fatigue_tracker = FatigueTracker(fps=60, window_sec=20.0)
+        self.fatigue_score = 0.0
+        self.fatigued = False
+        self.session_index = 1
+        self.fatigue_allowed = False   # ONLY true from session 2
 
 
         # -------------------------------------------------
@@ -76,6 +88,7 @@ class InputManager:
         #         baseline=EMG_BASELINE,
         #         max_activation=EMG_MAX_ACTIVATION
         #     )
+        
 
         elif self.mode == "fake_emg":
             print("FAKE EMG active")
@@ -120,6 +133,9 @@ class InputManager:
             # Read simulated EMG signals
             # ---------------------------------------------
             arm_act, leg_act = self.input.update()
+            
+
+
 
             # ---------------------------------------------
             # Unsupervised learning (K-means)
@@ -242,6 +258,17 @@ class InputManager:
                 self.move_speed = 0.0
 
 
+
+            if self.fatigue_enabled_global and self.fatigue_allowed:
+                score, fat = self.fatigue_tracker.update(arm_activation=arm_act, move_intent=self.move)
+                self.fatigue_score, self.fatigued = score, fat
+            else:
+                # session 1: learn baseline silently but never trigger fatigue state
+                self.fatigue_score = 0.0
+                self.fatigued = False
+
+
+
             self.effective_speed_sum += self.move_speed
             self.effective_speed_samples += 1
 
@@ -278,14 +305,27 @@ class InputManager:
             if self.move:
                 self.control_time += dt
             
-            if arm_act > 0.2:
-                self.control_time += dt
+            dt = 1 / 60 # 
+            self.mean_speed += self.move_speed * dt
+            self.speed_samples += 1
+
             self.total_time += dt
+            if self.move:
+                self.control_time += dt
 
 
 
         elif self.mode == "dual_emg":
             arm_act, leg_act = self.input.update()
+            
+            score, fat = self.fatigue_tracker.update(arm_activation=arm_act, move_intent=self.move)
+            if self.fatigue_allowed:
+                self.fatigue_score, self.fatigued = score, fat
+            else:
+                # session 1: learn baseline silently but never trigger fatigue state
+                self.fatigue_score = 0.0
+                self.fatigued = False
+
 
             # temporaire : on utilise l’activation comme feature
             arm_features = [arm_act]
@@ -389,13 +429,55 @@ class InputManager:
         return 1.0 - self.get_control_precision()
 
     
-    def get_effective_speed(self):
-        if self.arm_samples == 0:
+    # def get_effective_speed(self):
+    #     if self.arm_samples == 0:
+    #         return 0.0
+    #     return self.mean_arm_activation / self.arm_samples
+    def get_effective_speed(self): # UPDATED ; average effective speed during the session
+        if self.effective_speed_samples == 0:
             return 0.0
-        return self.mean_arm_activation / self.arm_samples
+        return self.effective_speed_sum / self.effective_speed_samples
+
 
     def get_jump_quality(self):
         total = self.good_jumps + self.bad_jumps
         if total == 0:
             return 0.5
         return self.good_jumps / total
+    
+    def get_difficulty_label(self): #UPDATED, for the continue session
+        d = self.get_difficulty_score()
+        if d < 0.33:
+            return "beginner"
+        elif d < 0.66:
+            return "intermediate"
+        return "advanced"
+
+
+    def is_fatigued(self): # UPDATED; fatigue state getter
+        return self.fatigued
+
+    def get_fatigue_score(self):
+        return self.fatigue_score
+
+    def reset_fatigue_after_rest(self):
+        self.fatigue_tracker.reset_after_rest()
+        self.fatigue_score = 0.0
+        self.fatigued = False
+    
+    def start_session(self, session_index: int, fresh: bool): # UPDATED; session management
+        self.session_index = session_index
+        self.fatigue_allowed = (session_index >= 2)
+
+        # enable fatigue simulation ONLY from session 2 (fake EMG)
+        if isinstance(self.input, FakeEMGInput):
+            self.input.set_fatigue_enabled(self.fatigue_allowed)
+
+        if fresh:
+
+            self.fatigue_tracker = FatigueTracker(fps=60, window_sec=20.0)
+            self.fatigue_score = 0.0
+            self.fatigued = False
+
+
+            

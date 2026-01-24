@@ -26,6 +26,15 @@ class FakeEMGInput:
         # -- ARM --
         self.arm_phase = "rest"      # "rest" | "active" | "overload"
         self.arm_timer = 0.0
+        
+        
+        # UPDATED ; fatigue simulation
+        self.sim_fatigue = 0.0          # 0..1 simulated fatigue
+        self.sim_fatigue_rate = 0.004  # how fast fatigue builds
+        self.sim_recovery_rate = 0.01
+        self.fatigue_enabled = False   # OFF for first session
+
+
 
 
     def update(self):
@@ -67,6 +76,33 @@ class FakeEMGInput:
             self.leg_timer -= dt
             if self.leg_timer <= 0:
                 self.leg_phase = "rest"
+        
+        # UPDATED ;
+        # =====================
+        # Simulated fatigue
+        # =====================
+        
+        if self.fatigue_enabled: 
+            if self.arm_activation > 0.25:
+                self.sim_fatigue = min(1.0, self.sim_fatigue + self.sim_fatigue_rate)
+            else:
+                self.sim_fatigue = max(0.0, self.sim_fatigue - self.sim_recovery_rate)
+
+            fatigue_gain = 1.0 - 0.6 * self.sim_fatigue
+
+            if random.random() < self.sim_fatigue * 0.25:
+                self.arm_activation *= 0.3
+            else:
+                self.arm_activation *= fatigue_gain
+        else:
+            # keep clean fresh behavior
+            self.sim_fatigue = 0.0
+            
+        
+
+
+
+
 
         return self.arm_activation, self.leg_activation
         
@@ -92,6 +128,9 @@ class FakeEMGInput:
             "noise": 0.05,
             "jump_prob": 0.01
         }
+        
+    def set_fatigue_enabled(self, enabled: bool):
+            self.fatigue_enabled = enabled
 
 
     # def update(self):
