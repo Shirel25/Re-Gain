@@ -1,6 +1,18 @@
 import math
 import random
 
+# =====================================================================
+# Fake EMG signal generator.
+
+#     This class simulates physiologically plausible EMG signals
+#     to develop and test the adaptive control logic without
+#     requiring a real EMG device.
+
+#     IMPORTANT:
+#     - No machine learning is used here.
+#     - This module ONLY generates raw signals.
+#     - Interpretation and learning happen downstream (InputManager).
+# =====================================================================
 
 class FakeEMGInput:
     """
@@ -38,9 +50,22 @@ class FakeEMGInput:
 
 
     def update(self):
+        """
+        Generate one frame of fake EMG signals.
+
+        Returns:
+            arm_activation (float): continuous effort level in [0, 1]
+            leg_activation (float): short impulse representing a jump intention
+        """
         params = self._get_profile_params()
         dt = 1 / 60
         self.time += dt
+
+
+        # The arm signal simulates a continuous muscle contraction:
+        # - A base activation level is chosen depending on the user profile
+        # - Random noise is added to mimic EMG variability
+        # - The signal is bounded to [0, 1]
 
         # =====================
         # ARM - continuous effort
@@ -54,6 +79,10 @@ class FakeEMGInput:
             self.arm_stable_time += dt
         else:
             self.arm_stable_time = 0.0
+
+        # The leg signal is event-based (not continuous):
+        # - Short impulses represent jump intentions
+        # - Implemented as a simple state machine (rest -> impulse -> recovery)
 
         # =====================
         # LEG - jump impulse
@@ -78,6 +107,12 @@ class FakeEMGInput:
                 self.leg_phase = "rest"
         
         # UPDATED ;
+        # Fatigue simulation:
+        # - When fatigue is enabled, sustained effort gradually reduces
+        #   the effective arm activation
+        # - Occasional drops simulate failed contractions
+        # - This provides a controlled "ground truth" for fatigue experiments
+
         # =====================
         # Simulated fatigue
         # =====================
@@ -98,11 +133,6 @@ class FakeEMGInput:
             # keep clean fresh behavior
             self.sim_fatigue = 0.0
             
-        
-
-
-
-
 
         return self.arm_activation, self.leg_activation
         

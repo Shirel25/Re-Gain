@@ -69,7 +69,7 @@ def main():
         # --- Update inputs ---
         input_manager.update(events)
 
-        # --- Jump --- # 
+        # # --- Jump --- # 
         if input_manager.jump_pressed():
             game.player.jump()
 
