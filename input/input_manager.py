@@ -64,8 +64,8 @@ class InputManager:
         self.mean_arm_activation = 0.0
         self.arm_samples = 0
         
-        self.fatigue_enabled_global = False # UPDATED; MAKE IT FALSE TO DISABLE FATIGUE SIMULATION!!!
-        
+        self.fatigue_enabled_global = True # UPDATED; MAKE IT FALSE TO DISABLE FATIGUE SIMULATION!!!
+        self.fatigue_allowed = True # UPDATED; fatigue allowed only from session 2
         # -------------------------------------------------
         
        
@@ -73,7 +73,10 @@ class InputManager:
         self.fatigue_score = 0.0
         self.fatigued = False
         self.session_index = 1
-        self.fatigue_allowed = False   # ONLY true from session 2
+        
+        
+        self._dbg_t = 0.0
+
 
 
         # -------------------------------------------------
@@ -188,58 +191,14 @@ class InputManager:
                 leg_state = leg_state_map.get(leg_cluster, REST)
             else:
                 leg_state = REST
-
-
-            # Debug visuel (IMPORTANT)
-            if arm_cluster is not None and leg_cluster is not None:
-                print(
-                    f"ARM act={arm_act:.2f} | cluster={arm_cluster} || "
-                    f"LEG act={leg_act:.2f} | cluster={leg_cluster}",
-                    end="\r"
-                )
-            print(
-                f"ARM act={arm_act:.2f} | state={arm_state} || "
-                f"LEG act={leg_act:.2f} | state={leg_state}",
-                end="\r"
-            )
+            
+            
             # ---- Gameplay ----
             # --- ARM ---
             # ============================
-            # BOUCLE COURTE 
-            # ============================
-            dt = 1 / 60
-
-            # stabilité = continuité, pas intensité
-            # if arm_state != REST:
-            #     self.arm_stable_time += dt
-            # vitesse continue, bornée
-            # self.move_speed = (
-            #     self.SPEED_NORMAL
-            #     + arm_act * (self.SPEED_BOOST - self.SPEED_NORMAL)
-            # )
-
-            # sécurité
-            # self.move_speed = min(self.move_speed, self.SPEED_BOOST)
-
-            # else:
-            #     self.arm_stable_time = max(0.0, self.arm_stable_time - dt)
-
-            # Décision de mouvement (intention)
-            # self.move = self.arm_stable_time >= self.STABILITY_SHORT
-
-            # # Vitesse discrète basée sur stabilité
-            # if self.arm_stable_time >= self.STABILITY_LONG:
-            #     self.move_speed = self.SPEED_BOOST
-
-            # elif self.move:
-            #     self.move_speed = self.SPEED_NORMAL
-                
-            # else:
-            #     self.move_speed = 0.0
-
-            # ============================
             # BOUCLE COURTE – CONTINUOUS CONTROL
             # ============================
+            dt = 1 / 60
 
             MIN_ARM_ACTIVATION = 0.15
 
@@ -263,7 +222,6 @@ class InputManager:
                 score, fat = self.fatigue_tracker.update(arm_activation=arm_act, move_intent=self.move)
                 self.fatigue_score, self.fatigued = score, fat
             else:
-                # session 1: learn baseline silently but never trigger fatigue state
                 self.fatigue_score = 0.0
                 self.fatigued = False
 
@@ -405,35 +363,7 @@ class InputManager:
             0.2 * jump_quality
         )
 
-
-    # def get_difficulty_score(self):
-    #     """
-    #     Returns a value in [0, 1]
-    #     0 = beginner-like control
-    #     1 = advanced-like control
-    #     """
-    #     precision = self.get_control_precision()
-    #     speed = self.get_mean_speed()
-
-    #     # normalisation douce
-    #     speed_norm = min(speed / 1.5, 1.0)
-
-    #     return 0.6 * precision + 0.4 * speed_norm
-
-    # def get_arm_variability(self):
-    #     if len(self.arm_variance_buffer) < 10:
-    #         return 1.0  # inconnu = instable
-    #     return np.std(self.arm_variance_buffer)
-    
-    def get_arm_variability(self):
-        return 1.0 - self.get_control_precision()
-
-    
-    # def get_effective_speed(self):
-    #     if self.arm_samples == 0:
-    #         return 0.0
-    #     return self.mean_arm_activation / self.arm_samples
-    def get_effective_speed(self): # UPDATED ; average effective speed during the session
+    def get_effective_speed(self): # average effective speed during the session
         if self.effective_speed_samples == 0:
             return 0.0
         return self.effective_speed_sum / self.effective_speed_samples
@@ -445,7 +375,7 @@ class InputManager:
             return 0.5
         return self.good_jumps / total
     
-    def get_difficulty_label(self): #UPDATED, for the continue session
+    def get_difficulty_label(self): # for the continue session
         d = self.get_difficulty_score()
         if d < 0.33:
             return "beginner"
@@ -454,7 +384,7 @@ class InputManager:
         return "advanced"
 
 
-    def is_fatigued(self): # UPDATED; fatigue state getter
+    def is_fatigued(self): # fatigue state getter
         return self.fatigued
 
     def get_fatigue_score(self):
@@ -465,7 +395,7 @@ class InputManager:
         self.fatigue_score = 0.0
         self.fatigued = False
     
-    def start_session(self, session_index: int, fresh: bool): # UPDATED; session management
+    def start_session(self, session_index: int, fresh: bool): # session management
         self.session_index = session_index
         self.fatigue_allowed = (session_index >= 2)
 

@@ -130,14 +130,40 @@ class Game:
 
         # ===========================================   
         
-        self.continue_count = 0 # UPDATED; count how many times the player continued the session
+        self.continue_count = 0 # count how many times the player continued the session
         self.continue_speed_mult = 1.0
         
-        self.speed_sum = 0.0 # UPDATED; for average speed calculation
+        self.speed_sum = 0.0 # for average speed calculation
         self.speed_samples = 0
         self.fatigue_resume_button_rect = None
         
-        self.sessions_completed = 0 # UPDATED; count completed sessions
+        self.sessions_completed = 0 # count completed sessions
+        
+        
+        self.move_speed = 0.0 # i
+
+        # per difficulty: (ACCEL, DECEL)
+        self.RAMP = {
+            "beginner":      (10.0, 18.0),
+            "intermediate":  (16.0, 24.0),
+            "advanced":      (26.0, 32.0),
+        }
+        self._dbg_last_t = 0.0
+        self.continue_speed_mult = 1.0 # short-term speed multiplier when continuing session
+        # How fast multiplier grows PER SECOND while player is moving
+        self.MULT_GROWTH_RATE = {
+            "beginner": 0.01,       # no growth
+            "intermediate": 0.03,   # slow growth
+            "advanced": 0.07,       # faster growth
+        }
+        # Safety caps (otherwise it can explode)
+        self.MULT_MAX = {
+            "beginner": 1.10,
+            "intermediate": 2.60,
+            "advanced": 3.50,
+        }
+
+
 
 
     # =========================
@@ -155,16 +181,49 @@ class Game:
         # ===========================================
         # BOUCLE COURTE - appliquée depuis InputManager
         # ===========================================
+        
+        dt = 1.0 / FPS # short loop time speed
+        label = input_manager.get_difficulty_label()
+        # Grow mult only if player is actually moving this frame
         if input_manager.move_right_pressed():
-            # self.move_speed = input_manager.move_speed
-            self.move_speed = input_manager.move_speed * self.continue_speed_mult # UPDATED; apply continue speed multiplier
-
+            self.continue_speed_mult = min(
+                self.MULT_MAX[label],
+                self.continue_speed_mult + self.MULT_GROWTH_RATE[label] * dt
+            )
+            
+        if input_manager.move_right_pressed():
+            target_speed = input_manager.move_speed * self.continue_speed_mult
         else:
-            self.move_speed = 0.0
+            target_speed = 0.0
 
+        dt = 1.0 / FPS   # short loop time speed
+        label = input_manager.get_difficulty_label()
+        accel, decel = self.RAMP[label]
+        if self.move_speed < target_speed:
+            self.move_speed = min(target_speed, self.move_speed + accel * dt)
+        else:
+            self.move_speed = max(target_speed, self.move_speed - decel * dt)
   
-        self.speed_sum += self.move_speed # UPDATED; for average speed calculation
+        now = time.time()
+        if now - self._dbg_last_t > 0.2:  # print 5 times/sec
+            self._dbg_last_t = now
+            label = input_manager.get_difficulty_label()
+            max_speed = input_manager.SPEED_BOOST * self.continue_speed_mult
+            r = 0.0 if max_speed <= 1e-6 else min(self.move_speed / max_speed, 1.0)
+            bar = "█" * int(20 * r) + "-" * (20 - int(20 * r))
+
+            print(
+                f"[SHORT LOOP] {label:>12} | current speed={self.move_speed:5.2f} "
+                f"|  {bar}",
+                end="\r"
+            )
+
+        self.speed_sum += self.move_speed # for average speed calculation
         self.speed_samples += 1
+        
+        
+        
+
 
 
         # =========================
@@ -234,35 +293,6 @@ class Game:
             self.last_jump_obstacle = obstacle
 
 
-        # --- Ground / platform detection ---
-        # player_on_obstacle = False
-        # self.player.ground_y = self.ground_y
-
-        # for obstacle in self.obstacles:
-        #     # Zone des pieds du joueur
-        #     foot_left = self.player.rect.left + FOOT_MARGIN
-        #     foot_right = self.player.rect.right - FOOT_MARGIN
-
-        #     horizontal_ok = (
-        #         foot_right > obstacle.rect.left + 5 and
-        #         foot_left < obstacle.rect.right - 5 
-        #     )
-
-        #     if self.player.velocity_y >= 0:
-        #         previous_bottom = self.player.rect.bottom - self.player.velocity_y
-        #         current_bottom = self.player.rect.bottom
-
-        #         vertical_ok = (
-        #             previous_bottom <= obstacle.rect.top + PLAYER_FEET_OFFSET
-        #             and current_bottom >= obstacle.rect.top + PLAYER_FEET_OFFSET
-        #         )
-
-        #         if horizontal_ok and vertical_ok:
-        #             self.player.ground_y = obstacle.rect.top + PLAYER_FEET_OFFSET
-        #             self.player.velocity_y = 0
-        #             player_on_obstacle = True
-        #             break
-
         player_on_obstacle = False
         support_y = self.ground_y  # sol par défaut
 
@@ -307,25 +337,7 @@ class Game:
         self.player.ground_y = support_y
 
 
-        # # --- Horizontal collision (blocking) ---
-        # blocked = False
-        # if input_manager.move_right_pressed():
-        #     future_rect = self.player.rect.copy()
-        #     future_rect.x += self.move_speed
-
-        #     for obstacle in self.obstacles:
-        #         if future_rect.colliderect(obstacle.rect):
-        #             if obstacle.rect.left >= self.player.rect.right:
-        #                 if (
-        #                     self.player.rect.bottom
-        #                     > obstacle.rect.top + 5
-        #                     and not player_on_obstacle
-        #                 ):
-        #                     blocked = True
-        #                     break
         
-        
-        # UPDATED; fixed horizontal collision detection
         # --- Horizontal collision (blocking) ---
         blocked = False        
         if input_manager.move_right_pressed():
@@ -352,18 +364,6 @@ class Game:
         else:
             self.player.set_moving(False)
 
-        # # === Jump ===
-        # obstacle = self._nearest_obstacle_ahead()
-        # if (
-        #     input_manager.jump_pressed()
-        #     and self.player.on_ground
-        #     and obstacle is not None
-        #     and obstacle is not self.last_jump_obstacle
-        # ):
-        #     self.player.jump()
-        #     self.last_jump_obstacle = obstacle
-
-
         # --- Physics ---
         self.player.update()
 
@@ -385,14 +385,14 @@ class Game:
                 self.session_finished = True
                 self.sessions_completed += 1  
                 self.session_time = time.time() - self.session_start_time
-                print("🏁 FIN DE SESSION")
+                print(f"🏁 FIN DE SESSION\n")
                 print("Temps :", round(self.session_time, 2))
                 print("Obstacles :", self.obstacles_passed)
-                if input_manager.fatigue_tracker.end_of_session_fatigued(): # UPDATED; fatigue detection
+                if input_manager.fatigue_tracker.end_of_session_fatigued(): # fatigue detection
                     self.fatigued = True
 
-        if input_manager.is_fatigued(): # UPDATED; fatigue detection
-            self.fatigued = True   # your overlay state
+        if input_manager.is_fatigued(): # fatigue detection
+            self.fatigued = True   
             return
 
         if self.session_finished:
@@ -454,12 +454,12 @@ class Game:
         # -----------------------------
         # SPEED LEVEL (loop 1)
         # -----------------------------
-        if self.move_speed < 0.2:
-            speed_level = 0
-        elif self.move_speed < 1.4:
-            speed_level = 1
-        else:
-            speed_level = 2
+        max_speed = input_manager.SPEED_BOOST * self.continue_speed_mult #  max speed adjusted by continue multiplier
+        ratio = 0.0 if max_speed <= 1e-6 else self.move_speed / max_speed
+
+        if ratio < 0.05: speed_level = 0
+        elif ratio < 0.65: speed_level = 1
+        else: speed_level = 2
 
         # -----------------------------
         # DIFFICULTY LEVEL (loop 2)
@@ -529,8 +529,7 @@ class Game:
         print(
             f"[LONG LOOP] "
             f"precision={precision:.2f} | "
-            # f"speed={speed:.2f} | "
-            f"avg_speed={avg_speed:.2f} | "
+            f"average speed={avg_speed:.2f} | "
             f"difficulty={difficulty:.2f} | "
             f"spawn={self.obstacle_spawn_interval:.2f} | "
             f"dist={self.min_obstacle_distance} | "
@@ -725,8 +724,7 @@ class Game:
         self.session_finished = False
         self.session_start_time = time.time()
         self.last_jump_obstacle = None
-
-        # Optional: if you want each continued segment to be a “fresh run”
+        
         # keep obstacles_passed reset or not. Your call.
         self.obstacles_passed = 0
 
@@ -773,7 +771,7 @@ class Game:
             f"flag={self.flag.world_x}"
         )
         
-        # session 2 (or 3,4...) starts here. Keep baseline from session 1.
+        # session 2 (or 3,4...) starts here. Keep baseline from session 1
         input_manager.start_session(session_index=1 + self.continue_count, fresh=False)
 
     

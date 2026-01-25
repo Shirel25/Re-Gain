@@ -23,16 +23,6 @@ def load_images():
 # MAIN
 # =========================
 def main():
-    # # --- Calibration ---
-    # calibration = real_calibration()
-    # print("\nCalibration terminée. Lancement du jeu...")
-    # time.sleep(1)
-
-    # # --- Device ---
-    # device = BITalino(MAC_ADDRESS)
-    # device.start(1000, [5, 2])  # ARM + LEG # A5 est le premier canal analogique -> Colonne 5
-    #                                         # A2 est le deuxième canal analogique -> Colonne 6
-
     # --- Calibration ---
     calibration = fake_calibration()
     device = None

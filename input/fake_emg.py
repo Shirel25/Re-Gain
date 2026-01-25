@@ -28,9 +28,9 @@ class FakeEMGInput:
         self.arm_timer = 0.0
         
         
-        # UPDATED ; fatigue simulation
-        self.sim_fatigue = 0.0          # 0..1 simulated fatigue
-        self.sim_fatigue_rate = 0.004  # how fast fatigue builds
+        #  fatigue simulation
+        self.sim_fatigue = 0.0         
+        self.sim_fatigue_rate = 0.004  
         self.sim_recovery_rate = 0.01
         self.fatigue_enabled = False   # OFF for first session
 
@@ -95,14 +95,8 @@ class FakeEMGInput:
             else:
                 self.arm_activation *= fatigue_gain
         else:
-            # keep clean fresh behavior
             self.sim_fatigue = 0.0
             
-        
-
-
-
-
 
         return self.arm_activation, self.leg_activation
         
@@ -132,44 +126,3 @@ class FakeEMGInput:
     def set_fatigue_enabled(self, enabled: bool):
             self.fatigue_enabled = enabled
 
-
-    # def update(self):
-    #     """
-    #     Simulate EMG signals over time.
-    #     """
-    #     # ===========================================
-    #     # BOUCLE COURTE – Signal interpretation
-    #     # Filtering, stability, safety
-    #     # ===========================================
-    #     self.time += 0.05
-
-    #     # --- Arm: smooth continuous effort ---
-    #     self.arm_activation = 0.2
-
-    #     # --- Leg: occasional contraction peaks ---
-    #     if random.random() < 0.02:
-    #         self.leg_activation = 1.0
-    #     else:
-    #         self.leg_activation = 0.0
-        
-    #     # --- Update temporal stability for arm ---
-    #     if 0.10 <= self.arm_activation <= 0.30:
-    #         self.arm_stable_time += 0.05   # dt ≈ frame duration
-    #     else:
-    #         self.arm_stable_time = 0.0
-
-
-    # ===== Interface compatible with InputManager =====
-
-    # def jump_pressed(self, threshold=0.6):
-    #     return self.leg_activation > threshold
-
-    # def move_right_pressed(self):
-    #     """
-    #     Continuous control allowed only if activation
-    #     is temporally stable.
-    #     """
-    #     if self.arm_stable_time >= self.ARM_STABILITY_THRESHOLD:
-    #         return max(0.0, min(self.arm_activation, 1.0))
-    #     return 0.0
-    
