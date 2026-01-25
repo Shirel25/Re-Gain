@@ -7,6 +7,19 @@ from input.fake_emg import FakeEMGInput
 from input.emg import EMGInput, DualEMGInput, FatigueTracker
 from models.k_means_model import KMeansModel
 
+# ============================================================================================
+# INPUT MANAGER
+# Interprets input signals (keyboard, fake EMG, or real EMG)
+    # and converts them into gameplay intentions.
+
+    # Architecture:
+    # - Short loop (loop 1): real-time interpretation (move, speed, jump)
+    # - Long loop  (loop 2): performance aggregation and difficulty adaptation
+
+    # NOTE:
+    # - Signal generation (FakeEMGInput) is independent from interpretation.
+    # - K-means is used ONLY to learn user-specific activation levels.
+# ============================================================================================
 
 class InputManager:
     def __init__(self, mode="keyboard", calibration=None, device=None):
@@ -31,6 +44,9 @@ class InputManager:
 
         self.good_jumps = 0
         self.bad_jumps = 0
+
+        self.jump_intent_time = 0.0  # buffered jump intention (seconds)
+
 
         # -------------------------------------------------
         # Arm stability tracking 
@@ -97,11 +113,14 @@ class InputManager:
             print("FAKE EMG active")
             # beginner | intermediate | advanced
             # self.input = FakeEMGInput(profile="beginner") 
-            # self.input = FakeEMGInput(profile="intermediate")
-            self.input = FakeEMGInput(profile="advanced")
+            self.input = FakeEMGInput(profile="intermediate")
+            # self.input = FakeEMGInput(profile="advanced")
             print(f"Profile: {self.input.profile}")
 
-            # Unsupervised models to discretize EMG activations
+            # Unsupervised models to discretize EMG activations:
+            # Accumulate raw EMG activations over time.
+            # These samples are later clustered to learn
+            # what "low / medium / high" activation means for THIS user.
             self.arm_model = KMeansModel(n_clusters=3) # REST / ACTIVE / OVERLOAD
             self.leg_model = KMeansModel(n_clusters=2) # REST / ACTIVE
     
@@ -137,7 +156,10 @@ class InputManager:
             # ---------------------------------------------
             arm_act, leg_act = self.input.update()
             
-
+            dt = 1 / 60
+            # decay jump intention buffer
+            if self.jump_intent_time > 0:
+                self.jump_intent_time -= dt
 
 
             # ---------------------------------------------
@@ -150,7 +172,9 @@ class InputManager:
 
             self.frame_count += 1
 
-            # Refit toutes les 30 frames (~0.5s) pour adapter les clusters
+            # Periodically re-fit K-means models every 30 frames (~0.5s) so that
+            # activation thresholds (clusters) adapt to the user's behavior.
+            # This avoids fixed, arbitrary thresholds.
             if self.frame_count % 30 == 0:
                 self.arm_model.fit()
                 self.leg_model.fit()
@@ -162,6 +186,12 @@ class InputManager:
             arm_order = self.arm_model.get_cluster_order()
 
             if arm_order is not None:
+                # K-means only provides clusters.
+                # We impose a semantic meaning by ordering clusters
+                # from lowest to highest activation:
+                #   lowest  -> REST
+                #   middle  -> ACTIVE
+                #   highest -> OVERLOAD
                 arm_state_map = {
                     arm_order[0]: REST,
                     arm_order[1]: ACTIVE,
@@ -242,13 +272,14 @@ class InputManager:
             # - if cooldown is over
             if self.jump_cooldown > 0:
                 self.jump_cooldown -= dt
-                self.jump = False
+                # self.jump = False
             else:
                 if leg_state == ACTIVE and self.move:
-                    self.jump = True
+                    # self.jump = True
+                    self.jump_intent_time = 0.25  # secondes
                     self.jump_cooldown = 0.6
-                else:
-                    self.jump = False
+                # else:
+                #     self.jump = False
 
             
             # ============================
@@ -262,15 +293,6 @@ class InputManager:
             # Contrôle actif même pendant un saut
             if self.move:
                 self.control_time += dt
-            
-            dt = 1 / 60 # 
-            self.mean_speed += self.move_speed * dt
-            self.speed_samples += 1
-
-            self.total_time += dt
-            if self.move:
-                self.control_time += dt
-
 
 
         elif self.mode == "dual_emg":
@@ -334,7 +356,8 @@ class InputManager:
         return self.mean_speed / self.speed_samples
     
     def jump_pressed(self):
-        return self.jump
+        return self.jump_intent_time > 0
+        # return self.jump
         # return self.input.jump_pressed()
     
     def move_right_pressed(self):
