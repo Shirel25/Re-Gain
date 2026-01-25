@@ -149,18 +149,18 @@ class Game:
             "advanced":      (26.0, 32.0),
         }
         self._dbg_last_t = 0.0
-        self.continue_speed_mult = 1.0 # short-term speed multiplier when continuing session
+        self.continue_speed_mult = 2 # short-term speed multiplier when continuing session
         # How fast multiplier grows PER SECOND while player is moving
         self.MULT_GROWTH_RATE = {
-            "beginner": 0.01,       # no growth
-            "intermediate": 0.03,   # slow growth
-            "advanced": 0.07,       # faster growth
+            "beginner": 0.01,       # little growth
+            "intermediate": 0.2,   # slow growth
+            "advanced": 0.4,       # faster growth
         }
         # Safety caps (otherwise it can explode)
         self.MULT_MAX = {
-            "beginner": 1.10,
-            "intermediate": 2.60,
-            "advanced": 3.50,
+            "beginner": 2,
+            "intermediate": 4,
+            "advanced": 5,
         }
 
 
@@ -388,8 +388,11 @@ class Game:
                 print(f"🏁 FIN DE SESSION\n")
                 print("Temps :", round(self.session_time, 2))
                 print("Obstacles :", self.obstacles_passed)
-                if input_manager.fatigue_tracker.end_of_session_fatigued(): # fatigue detection
-                    self.fatigued = True
+                if input_manager.fatigue_allowed:  ##### FATIGUE NEW UPDATED
+                    score = input_manager.get_fatigue_score()
+                    print(f"[END] fatigue_score={input_manager.get_fatigue_score():.3f} fatigued_flag={input_manager.is_fatigued()}")
+                    if score > 0.03:    
+                        self.fatigued = True
 
         if input_manager.is_fatigued(): # fatigue detection
             self.fatigued = True   
@@ -482,10 +485,10 @@ class Game:
         # Render
         # -----------------------------
         speed_text = font.render(f"Speed: {speed_level_display}", True, (20, 20, 20))
-        diff_text = font.render(f"Difficulty: {diff_label}", True, (20, 20, 20))
+        # diff_text = font.render(f"Difficulty: {diff_label}", True, (20, 20, 20))
 
         self.screen.blit(speed_text, (20, 20))
-        self.screen.blit(diff_text, (20, 50))
+        # self.screen.blit(diff_text, (20, 50))
 
     # ===================================================
     # ADAPT DIFFICULTY (LOOP 2)

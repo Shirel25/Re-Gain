@@ -80,8 +80,8 @@ class InputManager:
         self.mean_arm_activation = 0.0
         self.arm_samples = 0
         
-        self.fatigue_enabled_global = True # UPDATED; MAKE IT FALSE TO DISABLE FATIGUE SIMULATION!!!
-        self.fatigue_allowed = True # UPDATED; fatigue allowed only from session 2
+        self.fatigue_enabled_global = False # UPDATED; MAKE IT FALSE TO DISABLE FATIGUE SIMULATION!!!
+        self.fatigue_allowed = False # UPDATED; fatigue allowed only from session 2
         # -------------------------------------------------
         
        
@@ -431,6 +431,9 @@ class InputManager:
             self.fatigue_tracker = FatigueTracker(fps=60, window_sec=20.0)
             self.fatigue_score = 0.0
             self.fatigued = False
+        
+        print(f"[SESSION] index={self.session_index} fatigue_allowed={self.fatigue_allowed} mode={type(self.input).__name__}")
+
 
 
             
