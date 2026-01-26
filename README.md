@@ -2,7 +2,7 @@
 
 ## 🖼️ Aperçu du prototype
 
-![Gameplay](assets/game.png)
+![Gameplay](assets/game/game.png)
 Le prototype prend la forme d’un jeu de type *runner 2D* :
 
 - Le personnage avance horizontalement en fonction de l’activation musculaire du bras
@@ -175,3 +175,8 @@ Par défaut, le jeu démarre en mode EMG simulé.
 ### 👥 Auteurs
 Projet réalisé dans le cadre d’un Master en Intelligence Artificielle,
 axé sur l’interaction adaptative et les interfaces physiologiques.
+ 
+**Auteurs :**
+- Shirel AMOZIEG
+- Sama SATARIYAN
+- Erisa KOHANSAL
