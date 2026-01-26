@@ -485,10 +485,10 @@ class Game:
         # Render
         # -----------------------------
         speed_text = font.render(f"Speed: {speed_level_display}", True, (20, 20, 20))
-        # diff_text = font.render(f"Difficulty: {diff_label}", True, (20, 20, 20))
+        diff_text = font.render(f"Difficulty: {diff_label}", True, (20, 20, 20))
 
         self.screen.blit(speed_text, (20, 20))
-        # self.screen.blit(diff_text, (20, 50))
+        self.screen.blit(diff_text, (20, 50))
 
     # ===================================================
     # ADAPT DIFFICULTY (LOOP 2)
