@@ -1,0 +1,13 @@
+===== Manuel minimal de prise en main =====
+
+Le code source complet et commenté est disponible sur GitHub : 
+https://github.com/Shirel25/Re-Gain
+
+Le projet se lance depuis la racine du dépôt avec la commande suivante :
+python main.py
+
+Le mode d’interaction et le niveau du joueur sont définis dans le fichier input/input_manager.py.
+Il suffit de décommenter la ligne correspondant au profil souhaité : 
+beginner / intermediate / advanced (l.115, 116, 117)
+
+Une description complète du projet et de son fonctionnement est disponible dans le fichier README du dépôt GitHub.
